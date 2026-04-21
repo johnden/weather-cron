@@ -1,0 +1,38 @@
+name: 每日天气播报
+
+on:
+ schedule:
+ # 北京时间 6:00 和 18:00
+ - cron: '0 22,10 * * *'
+ workflow_dispatch:
+
+jobs:
+ weather:
+ runs-on: ubuntu-latest
+ steps:
+ - uses: actions/checkout@v4
+
+ - uses: actions/setup-python@v5
+ with:
+ python-version: '3.11'
+
+ - name: 安装依赖
+ run: pip install requests
+
+ - name: 查询天气并推送飞书
+ run: python src/weather.py
+ env:
+ CITY: 北京
+ FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+
+ - name: 写入 GitHub Issue
+ if: vars.WEATHER_ISSUE_NUMBER != ''
+ uses: actions/github-script@v7
+ with:
+ script: |
+ github.rest.issues.createComment({
+ issue_number: ${{ vars.WEATHER_ISSUE_NUMBER }},
+ owner: context.repo.owner,
+ repo: context.repo.repo,
+ body: `### 🌤️ 天气播报 — ${new Date().toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'})}\n\n${process.env.weather_result}`
+ })
